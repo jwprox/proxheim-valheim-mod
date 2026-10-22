@@ -1,96 +1,79 @@
-# Troll Butt Follower v0.1.14
+# Proxheim 0.2.0
 
-A server-controlled vanilla troll visual effect, with OPTIONAL client support for reliable direct commands. The server needs the plugin. Other players can join without it.
+A general Valheim BepInEx plugin combining the Troll Butt Follower effect with server-only bonus Growth loot.
 
-## Install and upgrade
+## Upgrade from Troll Butt Follower
 
-1. Stop the server and copy TrollButtFollower.dll to BepInEx/plugins/TrollButtFollower/, replacing the previous DLL. The install ZIP has this folder layout.
-2. For reliable commands while you are the only connected player, also install the SAME v0.1.14 DLL on your client in BepInEx/plugins/TrollButtFollower/.
-3. Both machines need BepInExPack Valheim. Restart the server and your game. Confirm startup logs v0.1.14.
+1. Stop the server/game and remove the old TrollButtFollower.dll from every plugin folder where it was installed. Do not load both plugins: Proxheim declares the old plugin incompatible to avoid duplicate effects and conflicting patches.
+2. Extract Proxheim-v0.2.0-Install.zip into the Valheim server/game root, or copy Proxheim.dll to BepInEx/plugins/Proxheim/.
+3. Restart. Check LogOutput.log for `Proxheim loaded v0.2.0`.
 
-This is the same DLL for server and optional client. It does not require other players to install it, replace BepInEx/Harmony files, or alter ValheimPlus configuration. ValheimPlus coexistence has not been verified; collect LogOutput.log if it stops working. Do not keep duplicate copies of this plugin.
+Proxheim uses `com.jwpro.valheim.proxheim.cfg`. On first startup it copies settings from `com.jwpro.valheim.trollbuttfollower.cfg` if the new file does not exist. The old file is retained as a backup. Previous follower placement and sound migrations remain included. Optional client installations should upgrade to Proxheim too.
 
-## With the optional client plugin
+No game assemblies, BepInEx, or Harmony DLLs are included. Install the current BepInExPack Valheim separately. ValheimPlus coexistence still requires in-game verification.
 
-Use the Enter chat box:
+## Server-only Growth bonus
+
+The server adds a uniformly selected **10–20 extra Tar, inclusive**, to a confirmed Growth death. This is ADDITIONAL to vanilla loot, not a 10–20 total. Other creature drops are unchanged. The bonus is not multiplied by stars, player count, or world resource settings, and is split if necessary to respect the native Tar stack size.
+
+Only the SERVER awards the bonus. Clients do not need Proxheim for loot, and an optional client copy cannot award additional bonus drops. The server hooks locally simulated deaths and the vanilla network-object destruction callback. A per-Growth marker prevents those two paths from paying twice. Merely unloading a live creature does not award loot.
+
+**Dedicated-server limitation:** a client-owned Growth must have its zero-health state replicated before the server handles its destruction. If the final update is missing, the server deliberately skips that removal instead of awarding loot for an unconfirmed kill. It logs `Growth removed without replicated death health; skipped extra Tar`. This path needs dedicated-server testing; the plugin cannot guarantee a bonus for every remotely simulated death without that death evidence. Successful payouts log `Growth bonus: spawned ... extra Tar`.
+
+Server config:
+
+```ini
+[GrowthDrops]
+Enabled = true
+MinimumExtraTar = 10
+MaximumExtraTar = 20
+```
+
+Bounds are inclusive, accept 1–10000, and reversed bounds are normalized. Stop the server before editing and restart afterward. Native Tar spawning is used; no custom item or client message is needed.
+
+## Troll commands
 
 ```text
 trollbutt Player Name
 trollbuttrelease Player Name
 ```
 
-These also work as `/trollbutt Player Name` and `/trollbuttrelease Player Name`, or in the F5 console without a slash if you have enabled the console. Full names with spaces are supported, ignoring case.
+Full character names with spaces are supported, ignoring case. Commands are admin-only by default; server adminlist.txt is checked using the real transport connection.
 
-Client commands go directly over the connected server's peer RPC. They do not depend on chat recipients, so they are intended to work with a single player connected. They are not broadcast as ordinary chat. The client displays 'Request sent' followed by the server's response in chat/console. 'Request sent' alone is not confirmation that the command succeeded; the server must also have v0.1.14 or later.
+With Proxheim on BOTH your client and server, plain chat commands are sent directly to the server and are intended to work even when you are alone. Slash forms and F5 console forms also work on a client with Proxheim. Other players can join without the plugin. The client displays request status and the server response; 'Request sent' alone is not proof of success. No movement lock or collision bypass is added by installing it on a client.
 
-The server identifies the request using the actual transport connection, checks readiness, validates the command, applies the existing one-second rate limit, and checks adminlist.txt when Commands.AdminsOnly is true. A client cannot claim a different admin identity through a payload. Replies are accepted only from the client's connected server.
+Without a client plugin, use ordinary chat without a slash. `/s trollbutt Player Name` is another native-chat option. A dedicated server may not see the chat when there are no other recipients or communication permissions suppress them. An unmodified client will not recognize `/trollbutt` or the custom F5 command.
 
-## Without the client plugin
+## Server command-file fallback
 
-Plain chat commands remain supported by the server observer. Do not use a leading slash or F5 for these custom commands on an unmodified client; Valheim will reject unknown commands locally. You can also try `/s trollbutt Player Name` to use native shout chat.
+While the world is running, create `BepInEx/config/Proxheim.commands.txt` on the server, with one command per line. The old `TrollButtFollower.commands.txt` filename is also accepted when the new filename is absent. Save/upload to a temporary name first, then rename it when complete.
 
-The current game sends chat to individual player recipients. On a dedicated server, chat may not reach the observer when only one player is connected or communication permissions suppress other recipients. Use the optional client plugin or the server file fallback in that case. Server observer commands can be visible as ordinary chat, and responses may appear only in the client console/log.
+The server checks once per second, renames the file to a unique .processed name, and executes its lines. Check LogOutput.log for results. To release, create the original filename again with `trollbuttrelease Player Name`. File access is the authorization for this administrative fallback. Processed files may be deleted.
 
-All chat/direct commands are admin-only by default. The command file uses server filesystem access as authorization.
+## Follower behavior
 
-## Command-file fallback
+- Native passive Troll follows the player's replicated position and facing; the player can move normally.
+- Nameplate: `<player name>'s new home`; native enemy selection skips it as a target.
+- Default position offset: `(0, -0.5, 0.25)`, relative to player facing.
+- Crypt scrap-pile squishes alternate with troll grunts every two seconds. Each sound group plays every four seconds. Existing one-shots finish on release.
+- Spawn announcement: `<player name> has been a bad boy and is now enjoying some time up a troll's butt!`
+- Release removes the troll without loot, adds a green blob-death poof, and announces: `<player name>'s punishment has ended. The smell however...`
+- Death/disconnect ends the session. Restart recovery and shutdown cleanup are silent.
 
-While the world is running, create this file on the SERVER:
+The player's damage, camera, inventory, and movement remain normal. Client troll collision is not disabled, so pushing, clipping, or sliding remain possible. Other creatures may still target the player or hit the troll incidentally. Sounds and VFX depend on the native prefabs available in your game version.
 
-`BepInEx/config/TrollButtFollower.commands.txt`
+Additional server settings in the Proxheim config: Commands.AdminsOnly=true, Position.Offset=(0,-0.5,0.25), Position.Yaw=0, Sounds.Enabled=true, Sounds.IntervalSeconds=2. Adjust placement with the server stopped. Legacy internal follower tags/RPC identifiers are retained for cleanup and protocol compatibility, while the plugin, namespace, assembly, config, and installation folder are renamed Proxheim.
 
-Put one command per line, for example `trollbutt Player Name`. The server checks every second, renames the file to a unique .processed filename, then processes the lines. To release, create the original filename again containing `trollbuttrelease Player Name`.
+## Build and verification
 
-Save or upload to a temporary filename and rename it to the inbox when complete. Check BepInEx/LogOutput.log for success or errors; .processed means claimed, not that every command succeeded. Processed files may be deleted. If your host exposes the game's actual server console, the same commands are registered there, but stock headless Valheim has no interactive command console.
-
-## Effect behavior
-
-- Vanilla Troll follows the player's replicated position and facing; the player moves freely.
-- Nameplate: `<player name>'s new home`.
-- Native m_aiSkipTarget field makes normal vanilla enemy selection skip the follower. Other creatures may still attack the PLAYER; incidental attacks remain possible.
-- Troll stays passive and protected against damage through server control.
-- Squishy scrap-pile hit effects from Sunken Crypts alternate with troll grunts every two seconds. Each individual group plays every four seconds. Current one-shots finish after release.
-- Spawn announces: `<player name> has been a bad boy and is now enjoying some time up a troll's butt!`
-- Release deletes the troll without loot, spawns a green vanilla blob-death poof, and announces: `<player name>'s punishment has ended. The smell however...`
-- Death/disconnect ends the session. Recovery and shutdown cleanup are silent. Old tagged followers are removed after restarting the world.
-
-The player retains normal damage, camera, inventory, and movement rules. Client-side troll collision is NOT disabled, even when the optional client plugin is installed; that option only adds command transport. Pushing, sliding, clipping, or latency remain possible.
-
-## Configuration
-
-Placement correction: v0.1.14 reverses the recent horizontal adjustment, changing Z=-0.25 to Z=+0.25 while keeping Y=-0.5. Existing previous-default configs migrate automatically; other custom coordinates are preserved. Server settings control placement. Solo direct chat commands require this DLL on BOTH client and server; server-only users still need the command file when no chat packet is sent to the server.
-
-
-Generated file: BepInEx/config/com.jwpro.valheim.trollbuttfollower.cfg. Effect settings are read on the SERVER; optional client settings do not control the server.
-
-- Commands.AdminsOnly = true
-- Position.Offset = (0, -0.5, 0.25)
-- Position.Yaw = 0
-- Sounds.Enabled = true
-- Sounds.IntervalSeconds = 2 (allowed range 1–60)
-
-Offset is relative to player facing. Y controls height; Z controls forward/back placement. Stop, edit, restart after changes. Existing old default offsets and sound intervals migrate once; custom values and revision markers are preserved. These controls remain experimental and need visual tuning. If uninstalling, release followers before stopping the server and removing the DLL. Crash leftovers need one startup with the plugin installed for cleanup.
-
-## Diagnostics and verification
-
-- 'Direct command received' confirms the optional client's request reached the server.
-- 'Chat command received via Say/ChatMessage' confirms ordinary chat reached the observer.
-- 'Chat command rejected' reports identity, readiness, or permission issues.
-- 'Chat packet observation failed' reports ordinary chat parsing errors.
-- 'Sound accepted/rejected' and 'Repeating sound prefabs' show native sound selection.
-
-Release build passed with zero warnings/errors. All eleven Harmony patch targets and named arguments were checked against installed game metadata; ten compiled parser cases passed. Actual client/server network execution and ValheimPlus compatibility have not been verified in game.
-
-Suggested in-game test: connect alone with v0.1.14 installed on client/server, send spawn and release in chat, check direct-request and response logs, and confirm a non-admin is denied. Then connect a second client without the plugin and confirm it can join and see the effect.
-
-## Build from source
-
-Install a supported .NET SDK (built here using 10.0.402). Copy Local.props.example to Local.props and set ValheimPath plus BepInExPath if your mod profile is elsewhere. The project targets net472 and restores .NET Framework reference assemblies from NuGet; game/loader references are local and never bundled.
+Copy Local.props.example to Local.props, set ValheimPath/BepInExPath, then use a supported .NET SDK (built with 10.0.402):
 
 ```powershell
-dotnet build src/TrollButtPlugin/TrollButtPlugin.csproj -c Release
+dotnet build src/Proxheim/Proxheim.csproj -c Release
 ```
 
-Output: src/TrollButtPlugin/bin/Release/net472/TrollButtFollower.dll. With the game stopped, append `-t:Deploy` to explicitly copy into the configured BepInEx plugin folder. Normal builds do not deploy.
+The project targets net472. NuGet reference assemblies are needed on first restore; game/loader assemblies come from your own installation and are never redistributed. Output: src/Proxheim/bin/Release/net472/Proxheim.dll. With the server/game stopped, `-t:Deploy` explicitly copies to the configured BepInEx/plugins/Proxheim folder. Normal builds do not deploy.
 
+Release compilation passed with no warnings/errors. Twelve Harmony targets were checked against installed game metadata. Six death-eligibility cases, 2000 inclusive bonus rolls, fixed bounds, and reversed bounds passed. Actual network loot replication, kill detection under latency, config migration, and ValheimPlus compatibility need in-game verification.
 
+Test on a spare world: kill a Growth on a listen host, then kill a client-owned Growth on a dedicated server with an unmodified client. Confirm exactly one bonus stack/payout per confirmed death; inspect the success/skip logs. Also verify non-Growth deaths and administrative removals do not award bonuses, then regression-test the follower commands and release cleanup.

@@ -3,9 +3,9 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <AssemblyName>TrollButtFollower</AssemblyName>
-    <RootNamespace>TrollButtPlugin</RootNamespace>
-    <Version>0.1.14</Version>
+    <AssemblyName>Proxheim</AssemblyName>
+    <RootNamespace>Proxheim</RootNamespace>
+    <Version>0.2.0</Version>
     <Deterministic>true</Deterministic>
     <BepInExPath Condition="'$(BepInExPath)' == ''">$(ValheimPath)/BepInEx</BepInExPath>
     <ManagedPath>$(ValheimPath)/valheim_Data/Managed</ManagedPath>
@@ -74,7 +74,7 @@
     <Error Condition="!Exists('$(ManagedPath)/UnityEngine.CoreModule.dll')" Text="UnityEngine.CoreModule.dll not found. Set ValheimPath to your Valheim installation." />
   </Target>
   <Target Name="Deploy" DependsOnTargets="Build">
-    <MakeDir Directories="$(BepInExPath)/plugins/TrollButtFollower" />
-    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExPath)/plugins/TrollButtFollower" />
+    <MakeDir Directories="$(BepInExPath)/plugins/Proxheim" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExPath)/plugins/Proxheim" />
   </Target>
 </Project>

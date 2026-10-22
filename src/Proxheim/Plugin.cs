@@ -7,13 +7,14 @@ using BepInEx.Configuration;
 using HarmonyLib;
 using UnityEngine;
 
-namespace TrollButtPlugin
+namespace Proxheim
 {
-    [BepInPlugin(Guid, "Troll Butt Follower", Version)]
+    [BepInPlugin(Guid, "Proxheim", Version)]
+    [BepInIncompatibility("com.jwpro.valheim.trollbuttfollower")]
     public sealed class Plugin : BaseUnityPlugin
     {
-        public const string Guid = "com.jwpro.valheim.trollbuttfollower";
-        public const string Version = "0.1.14";
+        public const string Guid = "com.jwpro.valheim.proxheim";
+        public const string Version = "0.2.0";
         private const string CommandRpc = "TrollButtFollower_Command_v1";
         private const string ReplyRpc = "TrollButtFollower_Reply_v1";
         internal const string Marker = "trollbuttfollower_v1";
@@ -54,6 +55,14 @@ namespace TrollButtPlugin
         private void Awake()
         {
             Instance = this;
+            string previousConfig = Path.Combine(Paths.ConfigPath, "com.jwpro.valheim.trollbuttfollower.cfg");
+            if (!File.Exists(Config.ConfigFilePath) && File.Exists(previousConfig))
+            {
+                File.Copy(previousConfig, Config.ConfigFilePath);
+                Config.Reload();
+                Logger.LogInfo("Imported previous Troll Butt Follower configuration into Proxheim.");
+            }
+            GrowthDrops.Configure(Config, Logger);
             offset = Config.Bind("Position", "Offset", new Vector3(0f, -0.5f, 0.25f),
                 "Troll root offset in player local space. Adjust Y for head height and Z for butt alignment.");
             var offsetRevision = Config.Bind("Position", "OffsetRevision", 0, "Internal forward-offset migration marker.");
@@ -119,7 +128,7 @@ namespace TrollButtPlugin
                 (Terminal.ConsoleEvent)(args => ConsoleCommand(args.FullLine)));
             new Terminal.ConsoleCommand("trollbuttrelease", "<player name> - remove troll follower",
                 (Terminal.ConsoleEvent)(args => ConsoleCommand(args.FullLine)));
-            Logger.LogInfo("Troll Butt Follower loaded v" + Version + ". Server effect with optional direct client commands.");
+            Logger.LogInfo("Proxheim loaded v" + Version + ". Server effect with optional direct client commands.");
         }
 
         private void ConsoleCommand(string line)
@@ -138,8 +147,8 @@ namespace TrollButtPlugin
 
         private static void LocalFeedback(string text)
         {
-            if (Chat.instance) Chat.instance.AddString("[TrollButt] " + text);
-            if (Console.instance) Console.instance.Print("[TrollButt] " + text);
+            if (Chat.instance) Chat.instance.AddString("[Proxheim] " + text);
+            if (Console.instance) Console.instance.Print("[Proxheim] " + text);
         }
 
         private void SendDirectCommand(string text)
@@ -237,7 +246,7 @@ namespace TrollButtPlugin
             // Other players receive the vanilla reply; they never need the plugin.
             var peer = ZNet.instance.GetPeer(sender);
             if (peer != null && directClients.Contains(sender)) peer.m_rpc.Invoke(ReplyRpc, message);
-            else peer?.m_rpc.Invoke("RemotePrint", "[TrollButt] " + message);
+            else peer?.m_rpc.Invoke("RemotePrint", "[Proxheim] " + message);
         }
 
         private void Execute(string text, Action<string> reply)
@@ -376,7 +385,9 @@ namespace TrollButtPlugin
         {
             if (!ReferenceEquals(world, ZDOMan.instance))
             {
+                if (world != null) world.m_onZDODestroyed -= GrowthDrops.OnDestroyed;
                 world = ZDOMan.instance;
+                world.m_onZDODestroyed += GrowthDrops.OnDestroyed;
                 sessions.Clear(); lastCommands.Clear(); directClients.Clear(); recovery.Clear(); recoveryIndex = 0; recoveryDone = false;
                 squishSounds.Clear(); trollSounds.Clear(); soundsResolved = false; soundExpiry.Clear();
             }
@@ -492,7 +503,8 @@ namespace TrollButtPlugin
         // A reliable control path even when a lone vanilla client emits no chat packets.
         private void ReadCommandInbox()
         {
-            string inbox = Path.Combine(Paths.ConfigPath, "TrollButtFollower.commands.txt");
+            string inbox = Path.Combine(Paths.ConfigPath, "Proxheim.commands.txt");
+            if (!File.Exists(inbox)) inbox = Path.Combine(Paths.ConfigPath, "TrollButtFollower.commands.txt");
             if (!File.Exists(inbox)) return;
             string claimed = inbox + "." + System.Guid.NewGuid().ToString("N") + ".processed";
             try
@@ -553,6 +565,7 @@ namespace TrollButtPlugin
                 }
             }
             harmony?.UnpatchSelf();
+            if (world != null) world.m_onZDODestroyed -= GrowthDrops.OnDestroyed;
             Instance = null;
         }
     }
@@ -651,5 +664,6 @@ namespace TrollButtPlugin
         private static bool Prefix(Character __instance) => !Plugin.Server || !Plugin.Tagged(__instance);
     }
 }
+
 
 
