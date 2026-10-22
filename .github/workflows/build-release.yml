@@ -41,9 +41,21 @@ jobs:
             https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
             -o "$RUNNER_TEMP/steamcmd.tar.gz"
           tar -xzf "$RUNNER_TEMP/steamcmd.tar.gz" -C "$RUNNER_TEMP/steamcmd"
-          "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
-            +force_install_dir "$RUNNER_TEMP/valheim" \
-            +login anonymous +app_update 896660 validate +quit
+          # A fresh SteamCMD cache can report "Missing configuration" on its first
+          # install. Refresh app info and retry the stable public branch explicitly.
+          for attempt in 1 2 3; do
+            if "$RUNNER_TEMP/steamcmd/steamcmd.sh" \
+              +@sSteamCmdForcePlatformType linux \
+              +force_install_dir "$RUNNER_TEMP/valheim" \
+              +login anonymous +app_info_update 1 \
+              +app_update 896660 -beta public validate +quit; then
+              if test -f "$RUNNER_TEMP/valheim/valheim_server_Data/Managed/assembly_valheim.dll"; then
+                break
+              fi
+            fi
+            echo "SteamCMD attempt $attempt did not provide references; retrying..."
+            sleep 5
+          done
           test -f "$RUNNER_TEMP/valheim/valheim_server_Data/Managed/assembly_valheim.dll"
       - name: Fetch BepInEx build references
         shell: bash
@@ -105,3 +117,4 @@ jobs:
               --verify-tag --title "Proxheim v$VERSION" --generate-notes \
               --notes-file dist/RELEASE_NOTES.md "${flags[@]}"
           fi
+
