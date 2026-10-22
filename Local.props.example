@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <ValheimPath>C:/Program Files (x86)/Steam/steamapps/common/Valheim</ValheimPath>
+    <!-- For a mod-manager profile, set BepInExPath to that profile's BepInEx folder. -->
+    <!-- <BepInExPath>C:/path/to/profile/BepInEx</BepInExPath> -->
+  </PropertyGroup>
+</Project>
