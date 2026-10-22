@@ -77,3 +77,20 @@ The project targets net472. NuGet reference assemblies are needed on first resto
 Release compilation passed with no warnings/errors. Twelve Harmony targets were checked against installed game metadata. Six death-eligibility cases, 2000 inclusive bonus rolls, fixed bounds, and reversed bounds passed. Actual network loot replication, kill detection under latency, config migration, and ValheimPlus compatibility need in-game verification.
 
 Test on a spare world: kill a Growth on a listen host, then kill a client-owned Growth on a dedicated server with an unmodified client. Confirm exactly one bonus stack/payout per confirmed death; inspect the success/skip logs. Also verify non-Growth deaths and administrative removals do not award bonuses, then regression-test the follower commands and release cleanup.
+
+## GitHub Actions builds and releases
+
+`.github/workflows/build-release.yml` builds pull requests, pushes to main, version tags, and manual runs. GitHub-hosted Ubuntu downloads the current public Valheim Dedicated Server (Steam app 896660) anonymously with SteamCMD, plus the pinned BepInExPack 5.4.2333 build references. No Steam credentials or custom repository secrets are required. Game/loader assemblies are never uploaded as artifacts or release assets. A new game update can require source fixes before CI builds again.
+
+Each successful build uploads an artifact containing the install ZIP, standalone Proxheim.dll, SHA256SUMS.txt, and RELEASE_NOTES.md. Release notes include up to 50 commits since the previous version tag and installation/upgrade notes. Actions are pinned to verified commit SHAs.
+
+To publish a release, keep Plugin.cs and Proxheim.csproj versions synchronized, commit the changes, then push a matching tag:
+
+```powershell
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+Only a pushed version tag publishes a release; main/PR/manual runs only build artifacts. A mismatched tag fails packaging. The release job uses the built-in GITHUB_TOKEN with contents:write and adds GitHub-generated release notes/changelog alongside the packaged notes. Prerelease versions containing a hyphen are marked prereleases. Re-running a tag build updates its assets without replacing release notes edited by a maintainer.
+
+For local packaging after a Release build, run `pwsh ./scripts/Package.ps1`. This writes to dist/ (ignored by Git). Use a fresh output directory when rerunning, or remove the previous dist/staging folder first. Local builds still use Local.props; CI supplies ManagedPath and BepInExPath explicitly.

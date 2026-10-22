@@ -8,7 +8,7 @@
     <Version>0.2.0</Version>
     <Deterministic>true</Deterministic>
     <BepInExPath Condition="'$(BepInExPath)' == ''">$(ValheimPath)/BepInEx</BepInExPath>
-    <ManagedPath>$(ValheimPath)/valheim_Data/Managed</ManagedPath>
+    <ManagedPath Condition="'$(ManagedPath)' == ''">$(ValheimPath)/valheim_Data/Managed</ManagedPath>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />

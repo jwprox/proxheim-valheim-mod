@@ -4,3 +4,4 @@ obj/
 .idea/
 Local.props
 *.user
+dist/
